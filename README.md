@@ -1,194 +1,174 @@
 # Madison Management Services — website redesign
 
-A redesign of [madisonmanagement.net](https://www.madisonmanagement.net) for Madison Management
-Services, LLC — specialty loan servicing for private investors, and loss-mitigation options for
-homeowners. Eight static pages plus an AI chat assistant.
+A ground-up redesign of [madisonmanagement.net](https://www.madisonmanagement.net), plus an
+AI chat assistant, built during an internship at Madison Management Services, LLC — a specialty
+loan servicer in Reno, NV.
+
+Eight pages, no framework, no build step. One serverless function powers the assistant.
+
+![Redesigned homepage](docs/screenshots/01-home-hero.jpg)
 
 | | |
 |---|---|
-| **Preview** | https://madison-redesign-964sjoaem-siddarth30.vercel.app |
-| **Production** | https://madisonmanagementnet.vercel.app |
-| **Live site (unchanged)** | https://www.madisonmanagement.net |
-
-> **Production is not current.** The redesign lives on the preview URL only. Production still
-> serves the previous design until someone promotes a deployment.
+| **Live demo** | https://madison-redesign-964sjoaem-siddarth30.vercel.app |
+| **Current site this replaces** | https://www.madisonmanagement.net |
+| **Source** | this repo |
 
 ---
 
-## Stack
+## Before / after
+
+The brief: keep the company's navy-and-maroon identity and every word of its real content, but
+make it read like a firm you'd trust with a mortgage.
+
+**Before** — the current live site:
+
+![Before](docs/screenshots/00-before-live-site.jpg)
+
+**After:**
+
+![After](docs/screenshots/01-home-hero.jpg)
+
+What actually changed, and why:
+
+| | Before | After |
+|---|---|---|
+| **Type** | Poppins + Inter | Newsreader (editorial serif) · Instrument Sans · IBM Plex Mono |
+| **Ground** | Clinical grey `#f7f8fa` | Warm ivory `#faf8f4` |
+| **Maroon** | On every icon chip and badge | A sharp accent, used sparingly |
+| **Depth** | Flat gradient + cartoon wave divider | Layered glows, fine grid, grain texture, hairline rules |
+| **Motion** | None | Scroll reveals, stat counters, sticky-nav condense |
+
+The palette was inherited on purpose — navy `#12233f` and maroon `#8b2635` are unchanged. The
+premium feel comes from typography, warm paper, and restraint rather than new brand colours. A
+muted brass was added for hairlines only, because navy + burgundy + brass is the classic financial
+identity triad.
+
+The logo is the company's own and is **never recoloured**, even though its rust and blue sit
+outside the site palette.
+
+---
+
+## The AI chat assistant
+
+![Chat assistant](docs/screenshots/09-chat-widget.jpg)
+
+A chat widget on every page, backed by a Vercel serverless function calling Claude Haiku 4.5.
+
+The hard part of a chatbot for a mortgage servicer isn't the chat — it's making sure it never
+invents a fee. So it isn't allowed to answer from general knowledge:
+
+- **Grounded.** `api/_knowledge.js` is a hand-written reference of Madison's real fees, hours,
+  forms, and policies, injected into every request. The system prompt forbids stating any fee,
+  rate, timeline, or policy that isn't written there.
+- **Injection-resistant.** Rule 8 of the system prompt tells it to ignore instructions arriving
+  inside a visitor's message that try to change its rules.
+- **XSS-safe.** Model output is rendered with `textContent` and `createElement`, never
+  `innerHTML`. Even `**bold**` is parsed into real `<strong>` nodes rather than by parsing HTML,
+  so the model cannot inject markup.
+- **Scoped.** The widget states it's automated, can't access accounts, and tells users not to
+  share account numbers, SSNs, or passwords.
+- **Rate limited.** 20 requests per IP per 10 minutes.
+
+| Setting | Value |
+|---|---|
+| Model | `claude-haiku-4-5` |
+| Max response | 600 tokens |
+| Max question | 1000 characters |
+| History kept | 12 turns |
+
+If the API key is missing or billing runs out, the endpoint returns a clean error and the widget
+tells the visitor to call instead — **the rest of the site is unaffected.**
+
+---
+
+## More screenshots
+
+| | |
+|---|---|
+| ![Services](docs/screenshots/02-home-services.jpg) | ![Why Madison](docs/screenshots/03-home-why.jpg) |
+| Stats band + entry points | Split feature section |
+| ![Testimonials](docs/screenshots/04-home-testimonials.jpg) | ![Fee schedule](docs/screenshots/05-loan-servicing-fees.jpg) |
+| Client testimonials | Fee tables — mono figures, tabular numerals |
+| ![Homeowners](docs/screenshots/06-homeowners.jpg) | ![FAQ](docs/screenshots/07-faq.jpg) |
+| Homeowner loss-mitigation options | FAQ accordion |
+
+<img src="docs/screenshots/08-mobile-home.jpg" width="320" alt="Mobile view">
+
+---
+
+## How it's built
 
 Deliberately minimal — this is a marketing site, not an application.
 
-- **Plain HTML, CSS, and JavaScript.** No framework, no bundler, no build step. Every page is a
+- **Plain HTML, CSS, JavaScript.** No framework, no bundler, no build step. Every page is a
   complete `.html` file you can open in a browser.
-- **One stylesheet** (`assets/style.css`) and **one script** (`assets/main.js`) shared by all pages.
-- **One serverless function** (`api/chat.js`) — the only thing that needs a server.
-- Fonts load from Google Fonts. There are no other third-party runtime dependencies.
-
-The single npm dependency (`@anthropic-ai/sdk`) is used *only* by the serverless function. The
-pages themselves ship no npm code.
-
-## Structure
+- **One stylesheet, one script**, shared by all eight pages.
+- The only npm dependency (`@anthropic-ai/sdk`) is used by the serverless function. The pages
+  themselves ship no npm code.
 
 ```
-├── index.html              Home
-├── about.html              About Us
-├── contact.html            Contact
-├── faq.html                FAQs (accordion)
-├── homeowners.html         Homeowner loss-mitigation options
-├── investors.html          Investor solutions
-├── loan-servicing.html     Loan servicing + fee schedule
-├── rmlo-services.html      RMLO services + pricing
+├── index.html  about.html  contact.html  faq.html
+├── homeowners.html  investors.html  loan-servicing.html  rmlo-services.html
 │
 ├── assets/
-│   ├── style.css           Entire design system (tokens → components → responsive)
+│   ├── style.css           Design system — tokens → components → responsive
 │   ├── main.js             Nav, scroll reveals, counters, FAQ accordion
-│   ├── chat.js             Chat widget UI (injects itself into every page)
+│   ├── chat.js             Chat widget UI
 │   └── madison-logo*.png   Official brand lockup (1x + 2x)
 │
-├── api/
-│   ├── chat.js             Serverless endpoint — POST /api/chat
-│   └── _knowledge.js       Hand-written knowledge base the assistant is grounded in
-│
-└── package.json            One dependency, for api/ only
+└── api/
+    ├── chat.js             POST /api/chat
+    └── _knowledge.js       Knowledge base the assistant is grounded in
 ```
 
-Every page shares an identical `<head>`, top bar, nav, and footer. If you change one, change all
-eight — there is no templating layer.
+Every page shares an identical head, nav, and footer, with no templating layer — change one,
+change all eight.
 
-## Running locally
+**Accessibility and resilience.** Motion is applied at runtime by `main.js` and gated behind
+`prefers-reduced-motion`; if the script fails, every element stays visible and all controls still
+work as plain HTML. FAQ headers are keyboard-operable with `aria-expanded`. Verified across
+8 pages × 8 viewport widths (320–1600px) for horizontal overflow and layout breaks.
 
-No build step. Any static file server works:
+## Running it
+
+No build step:
 
 ```bash
 npx serve -l 4321 .
 ```
 
-Then open http://localhost:4321. On Windows PowerShell use `npx.cmd` — script execution policy
-blocks the `npx` shim.
-
-`.claude/launch.json` does the same thing for the Claude Code browser preview. It is a local
-convenience only and is Windows-specific.
-
-**The chat widget will not work against a plain static server** — `/api/chat` doesn't exist there,
-so the widget shows its "couldn't reach the assistant" fallback. That's expected. To run the API
-locally you need `vercel dev` and the environment variable below.
-
----
-
-## The chat assistant
-
-A widget on every page, backed by one serverless function that calls the Anthropic API.
-
-**Flow:** `assets/chat.js` (UI) → `POST /api/chat` → Anthropic Messages API → reply rendered back
-into the panel.
-
-### Configuration
-
-Set in `api/chat.js`:
-
-| Setting | Value |
-|---|---|
-| Model | `claude-haiku-4-5` |
-| Max response tokens | 600 |
-| Max question length | 1000 characters |
-| Conversation history kept | 12 turns |
-| Rate limit | 20 requests per IP per 10 minutes |
-
-### Required environment variable
-
-```
-ANTHROPIC_API_KEY
-```
-
-Read only as `process.env.ANTHROPIC_API_KEY` — it is never committed and never sent to the browser.
-On Vercel it is stored as a Sensitive environment variable. Without it the endpoint returns `503`
-and the widget tells the user to call instead; **the rest of the site is unaffected.**
-
-Billing is a prepaid credit balance on the Anthropic account, with a monthly spend cap. If credits
-run out, the endpoint fails the same way — the site keeps working, the assistant stops.
-
-### Grounding and safety
-
-The assistant is **not** free to answer from general knowledge. `api/_knowledge.js` contains a
-hand-written reference of Madison's real fees, hours, forms, and policies, injected into every
-request. The system prompt forbids stating any fee, rate, timeline, or policy not present in that
-reference — this is what stops it inventing servicing fees.
-
-Other deliberate choices:
-
-- Model output is rendered with `textContent` and `createElement`, **never** `innerHTML`. Markdown
-  bold is parsed into real `<strong>` nodes rather than by parsing HTML, so model output cannot
-  inject markup.
-- The widget states it is automated, cannot access accounts, and tells users not to share account
-  numbers, SSNs, or passwords.
-- The system prompt resists attempts to override its instructions.
-
-**Known limitation:** the rate limiter keeps counts in an in-memory `Map`. On serverless each
-instance has its own map and cold starts reset it, so the limit is best-effort abuse damping, not a
-hard guarantee. A shared store (Redis/KV) would be needed for a real cap.
-
----
+On Windows PowerShell use `npx.cmd` — execution policy blocks the `npx` shim. The chat widget
+needs `vercel dev` and an `ANTHROPIC_API_KEY` to work locally; against a plain static server it
+shows its offline fallback, which is expected.
 
 ## Deploying
 
-### Vercel (current)
-
 ```bash
-npx vercel          # preview deployment
-npx vercel --prod   # promote to production
+npx vercel          # preview
+npx vercel --prod   # production
 ```
 
-`api/` is picked up automatically by Vercel's file-system routing — `api/chat.js` becomes
-`/api/chat`. `_knowledge.js` is not routed because of the leading underscore.
+`api/chat.js` is picked up automatically by Vercel's file-system routing. `_knowledge.js` isn't
+routed, because of the leading underscore.
 
-### Hosting elsewhere
-
-The eight HTML pages and `assets/` are pure static files — drop them on any web server, IIS
-included. Nothing needs Node.
-
-**The chat assistant is the only part that needs porting.** `api/chat.js` is an ES module exporting
-a default `(req, res)` handler in Vercel's serverless signature. On a normal server it needs a thin
-wrapper — for example an Express route that calls the same handler — plus `ANTHROPIC_API_KEY` in
-that environment and `npm install` for the SDK. It also expects `req.body` to be parsed JSON and
-reads the client IP from `x-forwarded-for`, so a reverse proxy must forward that header.
-
-If the assistant isn't wanted on the new host, delete `api/` and remove the `chat.js` script tag
-from the eight pages. Nothing else depends on it.
+**Hosting elsewhere:** the eight pages and `assets/` are pure static files and will run on any web
+server, IIS included. Only the assistant needs porting — `api/chat.js` is an ES module exporting a
+Vercel-signature `(req, res)` handler, so it needs a thin wrapper (an Express route, say), a parsed
+JSON `req.body`, `x-forwarded-for` forwarded by the proxy, and `ANTHROPIC_API_KEY` in that
+environment. Delete `api/` and the `chat.js` script tag to drop the assistant entirely; nothing
+else depends on it.
 
 ---
 
-## Design
+## Status
 
-Typography carries the design; the palette was inherited and kept.
+- ✅ Eight pages redesigned, responsive, verified 320–1600px
+- ✅ Chat assistant built, grounded, and deployed
+- ⚠️ **The live demo's assistant needs a valid `ANTHROPIC_API_KEY`** set in the Vercel environment
+  it's deployed to. Without one the endpoint returns a clean error and the site works normally.
+- ⚠️ The contact form still uses a `mailto:` action and needs a real form handler before launch.
 
-- **Newsreader** (editorial serif) for headings, **Instrument Sans** for body, **IBM Plex Mono**
-  for section labels, statistics, and fee tables.
-- Brand **navy** `#12233f` and **maroon** `#8b2635` unchanged. Warm ivory `#faf8f4` replaces
-  clinical grey; muted brass is used for hairlines only.
-- Design tokens live at the top of `assets/style.css`. The older variable names (`--navy`,
-  `--maroon`, `--border`…) are kept as aliases, so inline styles in the HTML still resolve.
-- The **logo is never recoloured.** Its rust and blue sit outside the site palette on purpose. In
-  the dark footer it sits on an ivory plate, because a white knockout fills in the key inside the
-  house.
-
-Motion is applied by `assets/main.js` at runtime — scroll reveals, a stat counter, sticky-nav
-condensing, and a reading-progress bar. Reveal targets are selected by CSS class in JS rather than
-marked up per element, so pages can't fall out of sync. All of it is gated behind
-`prefers-reduced-motion`, and **if the script fails to run, every element stays visible** and all
-controls still work as plain HTML.
-
-Verified across 8 pages × 8 viewport widths (320–1600px): no horizontal overflow, both logos load,
-nav baselines identical.
-
----
-
-## Content
-
-Page copy mirrors the real Madison site, with wording changes requested by Sadhna Cordell and Edith
-Vivar. Fees, licensing (47 states + DC + PR), NMLS #185724, hours, and phone numbers are real —
-**treat them as content to verify, not to invent.** The same applies to `api/_knowledge.js`; an
-error there becomes something the assistant tells customers.
-
-The contact form currently uses a `mailto:` action, which depends on the visitor having a mail
-client configured. It should be replaced with a real form handler before launch.
+Fees, licensing (47 states + DC + PR), NMLS #185724, hours, and phone numbers throughout are real
+company data — **content to verify, not to invent.** The same goes for `api/_knowledge.js`: an
+error there becomes something the assistant tells a customer.
