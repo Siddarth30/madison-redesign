@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "madison-static",
+      "runtimeExecutable": "npx.cmd",
+      "runtimeArgs": ["--yes", "serve", "--listen", "4321", "."],
+      "port": 4321
+    }
+  ]
+}
